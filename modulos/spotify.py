@@ -3,7 +3,7 @@ import spotipy
 from spotipy import util
 from spotipy.oauth2 import SpotifyClientCredentials
 
-with open("credenciales_API.json", "r") as f:
+with open("tokens/credenciales_API.json", "r") as f:
     credenciales = json.loads(f.read())
 
 user_ID = credenciales["user_ID"]

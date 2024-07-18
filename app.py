@@ -3,7 +3,7 @@ import time
 import json
 import sqlite3 as sql
 from spotipy.exceptions import SpotifyException
-from spotify import AdministradorSpotify, UsuarioSpotify
+from modulos.spotify import AdministradorSpotify, UsuarioSpotify
 
 def SqlOpcion(argument: str):
     """Conectar con la base de datos y ejecutar secuencias SQL
