@@ -1,5 +1,9 @@
 from ytmusicapi import YTMusic
 
+#debug only
+import random
+import os
+
 class AdministradorYTMusic():
     def __init__(self, playlist_ID: str, modo_debug: bool = False) -> None:
         self.__yt__ = YTMusic(auth="modulos/tokens/oauth_yt.json")
@@ -51,7 +55,12 @@ class AdministradorYTMusic():
             """
             LISTATERMINADA.append(add_Elemnt)
             nombre_llave = add_Elemnt[1][0].split(" ")[0]+str(len(add_Elemnt[1]))+add_Elemnt[0]  # [NT: 1]
-            index_docs[nombre_llave] = {"beforeAt": canciones[LISTATERMINADA.index(add_Elemnt)][3]}
+            index_docs[nombre_llave] = {"index": canciones.index(add_Elemnt)}
+            index_docs[nombre_llave]["endIndex"] = LISTATERMINADA.index(add_Elemnt)
+            index_docs[nombre_llave]["ID"] = add_Elemnt[3]
+            
+            
+        
 
         def __EjecutarOrdenamiento__(LISTATERMINADA, index_docs):
             """bucle que reposiciona los elementos dentro de la playlist
@@ -63,23 +72,28 @@ class AdministradorYTMusic():
             while len(LISTATERMINADA) != 0:
                 # definir el "key" del diccionario a usar
                 NOMBRE_TAG = LISTATERMINADA[0][1][0].split(" ")[0]+str(len(LISTATERMINADA[0][1]))+LISTATERMINADA[0][0]
- 
+                index_guardado = index_docs[NOMBRE_TAG]["index"]
+                 
                 if self.__modo_debug__:
-                    print(f'!{NOMBRE_TAG} : PoFi {index_docs[NOMBRE_TAG]["beforeAt"]}')
+                    print(f'!{NOMBRE_TAG} : PoIn {index_guardado}  /  PoFi {index_docs[NOMBRE_TAG]["endIndex"]}')
 
-                #mueve de posicion el track con la API
-                self.__yt__.edit_playlist(playlistId=self.PLAYLIST_ID, moveItem=(LISTATERMINADA[0][3], index_docs[NOMBRE_TAG]["beforeAt"]))
 
-                #se reajusta los index_ID debido a modificar el orden de la playlist
-                for num, track in enumerate(LISTATERMINADA):
-                    if num == 0: 
-                        num = 1
-                    index_docs[track[1][0].split(" ")[0] + str(len(track[1])) + track[0]]["beforeAt"] = index_docs[LISTATERMINADA[num-1][1][0].split(" ")[0] + str(len(LISTATERMINADA[num-1][1])) + LISTATERMINADA[num-1][0]]["beforeAt"]
+                if index_guardado != index_docs[NOMBRE_TAG]["endIndex"]:
+                    #mueve de posicion el track con la API
+                    for num_id, comparador in index_docs.items():
+                        if comparador["index"] == index_docs[NOMBRE_TAG]["endIndex"]:
+                            self.__yt__.edit_playlist(playlistId=self.PLAYLIST_ID, moveItem=(LISTATERMINADA[0][3], comparador["ID"]))
 
+                    #se reajusta los index_ID debido a modificar el orden de la playlist
+                    for num, track in enumerate(LISTATERMINADA):
+                        track_index = track[1][0].split(" ")[0] + str(len(track[1])) + track[0]
+                        if index_docs[track_index]["index"] < index_guardado:
+                            index_docs[track_index]["index"] +=1
+                            
                 # Remover el elemento añadido de la lista original y el diccionario
                 LISTATERMINADA.remove(LISTATERMINADA[0])
                 del index_docs[NOMBRE_TAG]
-
+                
         if self.__modo_debug__:
             print("2. Obteniendo Playlist...")
 
@@ -98,7 +112,7 @@ class AdministradorYTMusic():
         LISTATERMINADA = []
         index_docs = {}
 
-        if Algoritmo == False:  # Algoritmo 1
+        if not Algoritmo:  # Algoritmo 1
             for nombre in artistas:
                 # definir las listas vacias para canciones con un solo artista y varios
                 artista_solista = []
@@ -121,13 +135,12 @@ class AdministradorYTMusic():
 
             del artista_solista
             del multiples_artistas
-            del canciones
-
-            #conecta con la API y reordena la lista
+            
             __EjecutarOrdenamiento__(LISTATERMINADA, index_docs)
 
+            del canciones
+
         else:  # Algoritmo 2
-            """falta por ajustar para su funcionamiento"""
             def __CoincidenciasArtista__(Lista_canciones: list, artista_buscar: str):
                 coincidencias = filter(lambda cancion: artista_buscar in cancion[1][0], Lista_canciones)
                 return len(list(coincidencias))
@@ -147,8 +160,7 @@ class AdministradorYTMusic():
                         coincidencias += 1
 
                 if self.__modo_debug__:
-                    print(
-                        f"Artista {nombre_artista} aparece: {coincidencias}\n")
+                    print(f"Artista {nombre_artista} aparece: {coincidencias}\n")
 
                 # separa las canciones dependiendo de la cantidad de artistas
                 for track in canciones:
@@ -197,10 +209,27 @@ class AdministradorYTMusic():
 
             __EjecutarOrdenamiento__(LISTATERMINADA, index_docs)
 
+            del canciones
+
         if self.__modo_debug__:
             print("3. Playlist Ordenada.", end="\n\n")
 
         return "Playlist ordenada."
+    
+    def Debug_desordenar(self):
+        print("debug: starting.")
+        items = self.ImportarCanciones()
+        for i, x in enumerate(items):
+            self.__yt__.edit_playlist(playlistId=self.PLAYLIST_ID, moveItem=(items[random.Random.randint(random, 0, len(items)-1)][3], items[random.Random.randint(random, 0, len(items)-1)][3]))
+            print(f"{i} / {len(items)} : {round((i/len(items)*100), 2)}%", end="\r")
+        print("debug: done.")        
 
 
-youtube = AdministradorYTMusic("PLMl1Y5tQ5mHl5RNgU8NxVw20Xpr7J-Pj9", modo_debug=False).OrdenarPlaylistAlgoritmo(Algoritmo=True)
+youtube = AdministradorYTMusic("PLMl1Y5tQ5mHlQxU34ZvZdE_UtZj91mjvu", modo_debug=True)
+
+#debug only
+#youtube.Debug_desordenar()
+ 
+
+#test zone
+youtube.OrdenarPlaylistAlgoritmo(Algoritmo=True)
