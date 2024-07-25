@@ -2,9 +2,9 @@ import re
 import json
 from ytmusicapi import YTMusic
 
-#debug only
+# debug only
 import random
-import os
+
 
 class AdministradorYTMusic():
     def __init__(self, playlist_ID: str, modo_debug: bool = False) -> None:
@@ -13,8 +13,16 @@ class AdministradorYTMusic():
         self.NOMBRE_PLAYLIST = self.__yt__.get_playlist(self.PLAYLIST_ID, limit=1)["title"]
         self.__modo_debug__ = modo_debug
 
+
+
+
+
     def __ObtenerPlaylist__(self) -> dict:
         return self.__yt__.get_playlist(playlistId=self.PLAYLIST_ID, limit=None)
+
+
+
+
 
     def ImportarCanciones(self) -> list:
         """Obtiene las canciones, extrae el titulo, artistas, duracion.
@@ -22,29 +30,35 @@ class AdministradorYTMusic():
         Returns:
             list: lista con los datos necesarios de las canciones
         """
-        def Separador_de_texto(separadores:list, texto:str):
+        def Separador_de_texto(separadores: list, texto: str):
             LISTA = []
             characteres = []
             for character in texto+separadores[0]:
                 if character in separadores:
-                    if characteres[0] == " ": characteres.pop(0)
-                    if characteres[-1] == " ": characteres.pop()
+                    if characteres[0] == " ":
+                        characteres.pop(0)
+                    if characteres[-1] == " ":
+                        characteres.pop()
                     LISTA.append("".join(characteres).replace("  ", " "))
                     characteres = []
                 else:
                     characteres.append(character)
             return LISTA
-        
+
+
         PLAYLIST = []
         canciones = self.__ObtenerPlaylist__()
-        if self.PLAYLIST_ID == excepcion_playlist_uno: 
+        
+        
+        if self.PLAYLIST_ID == excepcion_playlist_uno:
             for track in canciones["tracks"]:
                 name_song = track["title"]
                 if track["artists"] == None or re.match(r".*\s[-x]\s.*\s?(?:\(([fF]t\.|[fF]eat\.)\))?.*", name_song) != None:
                     print("if 1")
                     if re.match(r".*(ft\.|feat\.).*", name_song) != None:
                         print("if 2")
-                        request = re.search(r"(.*)\s[-x]\s(.*)\s(?:\()?(?:ft\.|feat\.)\s(.*[^\)])(?:\))?", name_song)
+                        request = re.search(
+                            r"(.*)\s[-x]\s(.*)\s(?:\()?(?:ft\.|feat\.)\s(.*[^\)])(?:\))?", name_song)
                         name_song = request.group(2)
                         artists_song = []
                         for x in Separador_de_texto(",&", request.group(1)) + Separador_de_texto(",&", request.group(3)):
@@ -54,13 +68,15 @@ class AdministradorYTMusic():
                         print(name_song)
                         request = re.search(r"^(.*)\s[-x]\s(.*)", name_song)
                         name_song = request.group(2).split(" (")[0]
-                        if name_song == 'INTROVERSION 2.0': exit()
+                        if name_song == 'INTROVERSION 2.0':
+                            exit()
                         artists_song = []
                 else:
                     print("else 1")
-                    artists_song = [] #artistas de la cancion
+                    artists_song = []  # artistas de la cancion
                     if re.match(r".*(ft\.|feat\.).*", name_song) != None:
-                        request = re.search(r"^(.*)\s\((?:ft\.|feat\.)\s(.*)\)", name_song)
+                        request = re.search(
+                            r"^(.*)\s\((?:ft\.|feat\.)\s(.*)\)", name_song)
                         name_song = request.group(1).split(" (")[0]
                         for artist in Separador_de_texto("&", (request.group(2))):
                             artists_song.append(artist)
@@ -70,14 +86,23 @@ class AdministradorYTMusic():
                 print(name_song)
                 PLAYLIST.append([name_song, artists_song, track["duration"]])
                 print("\n----")
+                
+                
+                
         else:
             for track in canciones["tracks"]:
-                name_song = track["title"] #titulo de la cancion
-                artists_song = [artist["name"] for artist in track["artists"]] #artistas de la cancion
-                length_song = track["duration"] #duracion de la cancion
+                name_song = track["title"]  # titulo de la cancion
+                artists_song = [artist["name"] for artist in track["artists"]] # artistas de la cancion
+                length_song = track["duration"]  # duracion de la cancion
                 PLAYLIST.append([name_song, artists_song, length_song])
             del canciones
         return PLAYLIST
+
+
+
+
+
+
 
     def OrdenarPlaylistAlgoritmo(self, Algoritmo: bool = False) -> str:
         """
@@ -93,72 +118,62 @@ class AdministradorYTMusic():
         2. Al ejecutar el reordenamiento los elemento que esten abajo se posicioran arriba y desplazaran una posicion los elementos anteriores a el elemento que se reordeno, es decir cada que un elemento se reposicion primero,mueve todos los que estan detras de el una posicion para colocarse donde deberia ir una vez ordenada la playlist y para no confundir los index, hay que sumarle un valor cada vez que esto pase.
 
         Args:
-                Algoritmo bool: estable que algoritmo se usara, 0 para seccion simple y 1 para seccion doble
+                Algoritmo bool: establece que algoritmo se usara, 0 para seccion simple y 1 para seccion doble
         """
         def __ActualizarListaYIndexs__(add_Elemnt):
-            """codigo que se reutiliza para añadir las tracks a la lista final y el Index_ID al diccionario
-
-            Args:
-                add_Elemnt list: track (nombre: cancion, nombres: artistas, duracion, SetVideoId: ID para posicionar)
-            """
+            #codigo que se reutiliza para añadir las tracks a la lista final y el Index_ID al diccionario
             LISTATERMINADA.append(add_Elemnt)
             nombre_llave = add_Elemnt[1][0].split(" ")[0]+str(len(add_Elemnt[1]))+add_Elemnt[0]  # [NT: 1]
             index_docs[nombre_llave] = {"index": canciones.index(add_Elemnt)}
             index_docs[nombre_llave]["endIndex"] = LISTATERMINADA.index(add_Elemnt)
             index_docs[nombre_llave]["ID"] = add_Elemnt[3]
-            
-            
-        
 
         def __EjecutarOrdenamiento__(LISTATERMINADA, index_docs):
-            """bucle que reposiciona los elementos dentro de la playlist
-
-            Args:
-                LISTATERMINADA list: lista con los tracks ordenados
-                index_docs list: Index_IDs que indicara antes de que track se debe añadir el iterado 
-            """
+            #bucle que reposiciona los elementos dentro de la playlist
             while len(LISTATERMINADA) != 0:
                 # definir el "key" del diccionario a usar
                 NOMBRE_TAG = LISTATERMINADA[0][1][0].split(" ")[0]+str(len(LISTATERMINADA[0][1]))+LISTATERMINADA[0][0]
                 index_guardado = index_docs[NOMBRE_TAG]["index"]
-                 
-                if self.__modo_debug__:
-                    print(f'!{NOMBRE_TAG} : PoIn {index_guardado}  /  PoFi {index_docs[NOMBRE_TAG]["endIndex"]}')
 
+                if self.__modo_debug__:print(f'!{NOMBRE_TAG} : PoIn {index_guardado}  /  PoFi {index_docs[NOMBRE_TAG]["endIndex"]}')
 
                 if index_guardado != index_docs[NOMBRE_TAG]["endIndex"]:
-                    #mueve de posicion el track con la API
-                    for num_id, comparador in index_docs.items():
+                    # mueve de posicion el track con la API
+                    for comparador in index_docs.values():
                         if comparador["index"] == index_docs[NOMBRE_TAG]["endIndex"]:
                             self.__yt__.edit_playlist(playlistId=self.PLAYLIST_ID, moveItem=(LISTATERMINADA[0][3], comparador["ID"]))
 
-                    #se reajusta los index_ID debido a modificar el orden de la playlist
-                    for num, track in enumerate(LISTATERMINADA):
-                        track_index = track[1][0].split(" ")[0] + str(len(track[1])) + track[0]
-                        if index_docs[track_index]["index"] < index_guardado:
-                            index_docs[track_index]["index"] +=1
-                            
+                    # se reajusta los index_ID debido a modificar el orden de la playlist
+                    for track in index_docs.values():
+                        if track["index"] < index_guardado:
+                            track["index"] += 1
+
                 # Remover el elemento añadido de la lista original y el diccionario
                 LISTATERMINADA.remove(LISTATERMINADA[0])
                 del index_docs[NOMBRE_TAG]
-                
+
         if self.__modo_debug__:
             print("2. Obteniendo Playlist...")
 
-        # Obtener las canciones de la playlist
         canciones = []
-        playlist_tracks = self.__ObtenerPlaylist__()
-        for track in canciones["tracks"]:
-            name_song = track["title"] #titulo de la cancion
-            artists_song = [artist["name"] for artist in track["artists"]] #artistas de la cancion
-            length_song = track["duration"] #duracion de la cancion
-            song_ID = track["setVideoId"] #'SetVideoId' de la cancion
+        playlist_tracks = self.__ObtenerPlaylist__() # Obtener las canciones de la playlist
+        for track in playlist_tracks["tracks"]:
+            name_song = track["title"]  # titulo de la cancion
+            artists_song = [artist["name"]for artist in track["artists"]]  # artistas de la cancion
+            """eliminar la duracion ya que es innecesario"""
+            length_song = track["duration"]  # duracion de la cancion
+            song_ID = track["setVideoId"]  # 'SetVideoId' de la cancion
             canciones.append([name_song, artists_song, length_song, song_ID])
+        del playlist_tracks
+        del name_song
+        del artists_song
+        del length_song
+        del song_ID
 
         artistas = []
-        for track in canciones:
+        for track in canciones: #filtrar los artistas
             nombre_artista = track[1][0]
-            if nombre_artista not in artistas:  # añadir el nombre del artista a la lista
+            if nombre_artista not in artistas:
                 artistas.append(nombre_artista)
         del nombre_artista
         artistas.sort(key=lambda item: item.lower())
@@ -168,18 +183,18 @@ class AdministradorYTMusic():
         index_docs = {}
 
         if not Algoritmo:  # Algoritmo 1
-            for nombre in artistas:
+            for nombre_artista in artistas:
                 # definir las listas vacias para canciones con un solo artista y varios
                 artista_solista = []
                 multiples_artistas = []
 
                 # separa las canciones dependiendo de la cantidad de artistas
-                for elemento in canciones:
-                    if elemento[1][0] == nombre:
-                        if len(elemento[1]) != 1:
-                            multiples_artistas.append(elemento)
+                for track in canciones:
+                    if track[1][0] == nombre_artista:
+                        if len(track[1]) != 1:
+                            multiples_artistas.append(track)
                         else:
-                            artista_solista.append(elemento)
+                            artista_solista.append(track)
 
                 artista_solista.sort()
                 multiples_artistas.sort()
@@ -187,13 +202,15 @@ class AdministradorYTMusic():
                 # Combina las lista y las añade a la lista principal ordenadas y extrae el index_ID
                 for add_Elemnt in artista_solista + multiples_artistas:
                     __ActualizarListaYIndexs__(add_Elemnt)
-
+                    
+            del nombre_artista
+            del track
+            del add_Elemnt  
             del artista_solista
             del multiples_artistas
-            
-            __EjecutarOrdenamiento__(LISTATERMINADA, index_docs)
-
             del canciones
+
+            __EjecutarOrdenamiento__(LISTATERMINADA, index_docs)
 
         else:  # Algoritmo 2
             def __CoincidenciasArtista__(Lista_canciones: list, artista_buscar: str):
@@ -213,6 +230,7 @@ class AdministradorYTMusic():
                 for iterador in canciones:
                     if nombre_artista in iterador[1][0]:
                         coincidencias += 1
+                del iterador
 
                 if self.__modo_debug__:
                     print(f"Artista {nombre_artista} aparece: {coincidencias}\n")
@@ -237,7 +255,10 @@ class AdministradorYTMusic():
                         del add
                     elif track[1][0] == nombre_artista:
                         segunda_seccion.append(track)
-
+                del track
+                del artista
+                del coincidencias
+                
                 # Ordenada las lista
                 artista_solista.sort()
                 multiples_artistas.sort()
@@ -254,27 +275,29 @@ class AdministradorYTMusic():
             for track in TEMP:
                 if track not in LISTATERMINADA:
                     __ActualizarListaYIndexs__(track)
-
+            del track
+            
+            del nombre_artista
+            del canciones
             del TEMP
             del artista_solista
             del multiples_artistas
             del extra_artista
             del segunda_seccion
-            del coincidencias
 
             __EjecutarOrdenamiento__(LISTATERMINADA, index_docs)
-
-            del canciones
 
         if self.__modo_debug__:
             print("3. Playlist Ordenada.", end="\n\n")
 
         return "Playlist ordenada."
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
     def ComprobarPlaylist(self):
         """Comprueba si la playlist tiene canciones duplicadas y las elimina."""
         if self.__modo_debug__:
@@ -282,49 +305,56 @@ class AdministradorYTMusic():
         canciones = []
         playlist_tracks = self.__ObtenerPlaylist__()
         for track in playlist_tracks["tracks"]:
-            name_song = track["title"] #titulo de la cancion
-            artists_song = [artist["name"] for artist in track["artists"]] #artistas de la cancion
-            video_ID = track["videoId"] #'videoId' de la cancion
-            song_ID = track["setVideoId"] #'SetVideoId' de la cancion
+            name_song = track["title"]  # titulo de la cancion
+            artists_song = [artist["name"] for artist in track["artists"]]  # artistas de la cancion
+            video_ID = track["videoId"]  # 'videoId' de la cancion
+            song_ID = track["setVideoId"]  # 'SetVideoId' de la cancion
             canciones.append([name_song, artists_song, video_ID, song_ID])
-                    
+        del track
+        
         if self.__modo_debug__:
             print("2. Playlist obtenida.")
         if self.__modo_debug__:
             print("3. Comprobando Playlist...")
-        
+
         repetidas = []
-        for cancion in canciones:
+        for cancion in canciones: #revisar las repetidas y añadirlas a la lista
             coincidencias = 0
             for track in canciones:
                 if cancion[0] == track[0] and cancion[1] == track[1]:
                     coincidencias += 1
+            del track
             if coincidencias > 1:
                 existe = False
-                valor = [cancion[0:2], cancion[2], cancion[3], existe]
+                valores = [cancion[0:2], cancion[2], cancion[3], existe]
                 if len(repetidas) == 0:
-                    repetidas.append(valor)
+                    repetidas.append(valores)
                 else:
-                    for i, elemento in enumerate(repetidas):
-                        if cancion[0] == elemento[0][0] and cancion[1] == elemento[0][1]:
-                            if cancion[2] == elemento[1]:
-                                repetidas[i][3] = True
+                    for index, track in enumerate(repetidas):
+                        if cancion[0] == track[0][0] and cancion[1] == track[0][1]:
+                            if cancion[2] == track[1]:
+                                repetidas[index][3] = True
                             existe = True
                     if not existe:
-                        repetidas.append(valor)
+                        repetidas.append(valores)
+        del canciones
+        del index
+        del track
+        
         try:
             del existe
-            del canciones
             if self.__modo_debug__:
                 print("\n[!]Canciones duplicadas encontradas: ")
 
             for indx, eliminar_cancion in enumerate(repetidas):
                 if self.__modo_debug__:
                     print("+ ", eliminar_cancion[0])
-                repetidas[indx] = {"videoId": eliminar_cancion[1], "setVideoId":eliminar_cancion[2]}
-                            
-            self.__yt__.remove_playlist_items(playlistId=self.PLAYLIST_ID, videos=repetidas)
+                repetidas[indx] = {"videoId": eliminar_cancion[1], "setVideoId": eliminar_cancion[2]}
+            del indx
+            del eliminar_cancion
             
+            self.__yt__.remove_playlist_items(playlistId=self.PLAYLIST_ID, videos=repetidas)
+
             del repetidas
 
         except UnboundLocalError:
@@ -334,33 +364,38 @@ class AdministradorYTMusic():
 
         if self.__modo_debug__:
             print("3. Playlist Comprobada.")
-            
+
         return "Duplicados eliminados."
-    
-    
-    
-    
+
+
+
+
+
+
     def Debug_desordenar(self):
+        """test funcion debug"""
         print("debug: starting.")
         items = self.ImportarCanciones()
         for i, x in enumerate(items):
             self.__yt__.edit_playlist(playlistId=self.PLAYLIST_ID, moveItem=(items[random.Random.randint(random, 0, len(items)-1)][3], items[random.Random.randint(random, 0, len(items)-1)][3]))
             print(f"{i} / {len(items)} : {round((i/len(items)*100), 2)}%", end="\r")
-        print("debug: done.")        
+        print("debug: done.")
 
 
-#default values
+# default values
 """integrar con JSON library para privadidad de playlist"""
 excepcion_playlist_uno = "PLMl1Y5tQ5mHleOf9-Tpq4pimsKqt16NcI"
 
-youtube = AdministradorYTMusic("PLMl1Y5tQ5mHleOf9-Tpq4pimsKqt16NcI", modo_debug=True)
+youtube = AdministradorYTMusic("PLMl1Y5tQ5mHleOf9-Tpq4pimsKqt16NcI", modo_debug=True).OrdenarPlaylistAlgoritmo()
 
 
-#debug only
-#youtube.Debug_desordenar()
- 
 
-#test zone
+# debug only
+# youtube.Debug_desordenar()
+
+
+# test zone
 x = youtube.ImportarCanciones()
 print("\n\n---- results ----")
-for f in x: print(f)
+for f in x:
+    print(f)
