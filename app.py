@@ -163,10 +163,11 @@ if __name__ == "__main__":
     TimeIn = time.time()  # tomar tiempo al momento de inicio
     argvs = sys.argv[1:]
     
-    with open("credenciales_API.json", "r") as f:
+    with open("modulos/excepciones.json", "r") as f:
         excepcion = json.loads(f.read())
     
-    with open("credenciales_API.json", "w") as f:
+    """with open("modulos/tokens/credenciales_API.json", "r") as f:
+        #acomodar seccion, elimina el codigo al intentar reescribir el contenido [no usar la opcion 'w' al abrir el archivo]
         modo_debug = excepcion["modo_debug"]
         if argvs[0] == "--debug" or argvs[0] == "--d":
             if excepcion["modo_debug"]: 
@@ -176,11 +177,11 @@ if __name__ == "__main__":
             f.seek(0)
             f.write(json.dumps(excepcion, indent=2))
             print("Ajuste actualizado.")
-            exit()
+            exit()"""
 
-    
-    excepcion_playlist_uno = excepcion["excepcion_playlist_uno"]
-    excepcion_playlist_dos = excepcion["excepcion_playlist_dos"]
+    modo_debug = True
+    excepcion_playlist_uno = excepcion["spotify"]["excepcion_playlist_uno"]
+    excepcion_playlist_dos = excepcion["spotify"]["excepcion_playlist_dos"]
     spotify_path = excepcion["spotify_path"]
     youtube_path = excepcion["youtube_path"]
     

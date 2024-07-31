@@ -30,64 +30,65 @@ class AdministradorYTMusic():
         Returns:
             list: lista con los datos necesarios de las canciones
         """
-        def Separador_de_texto(separadores: list, texto: str):
-            LISTA = []
-            characteres = []
-            for character in texto+separadores[0]:
-                if character in separadores:
-                    if characteres[0] == " ":
-                        characteres.pop(0)
-                    if characteres[-1] == " ":
-                        characteres.pop()
-                    LISTA.append("".join(characteres).replace("  ", " "))
-                    characteres = []
-                else:
-                    characteres.append(character)
-            return LISTA
-
-
         PLAYLIST = []
         canciones = self.__ObtenerPlaylist__()
         
-        
         if self.PLAYLIST_ID == excepcion_playlist_uno:
+            """Excepcion para playlist que no cuenta con los titulos y clasificacion de artistas estandar"""
             for track in canciones["tracks"]:
                 name_song = track["title"]
-                if track["artists"] == None or re.match(r".*\s[-x]\s.*\s?(?:\(([fF]t\.|[fF]eat\.)\))?.*", name_song) != None:
-                    print("if 1")
-                    if re.match(r".*(ft\.|feat\.).*", name_song) != None:
-                        print("if 2")
-                        request = re.search(
-                            r"(.*)\s[-x]\s(.*)\s(?:\()?(?:ft\.|feat\.)\s(.*[^\)])(?:\))?", name_song)
-                        name_song = request.group(2)
-                        artists_song = []
-                        for x in Separador_de_texto(",&", request.group(1)) + Separador_de_texto(",&", request.group(3)):
-                            artists_song.append(x)
+                if track["artists"] == None or re.match(r".*\s-\s.*", name_song):
+                    if re.match(r".*([Ff][Ee][Aa][Tt]\.|[Ff][Tt]\.).*", name_song):
+                        request = re.split(r"\s-\s", name_song)
+                        name_song = re.split(r"[\s\S](?:[Ff][Tt]\.|[Ff][Ee][Aa][Tt]\.)[\s\S]", request[1])[0]
+                        artists_song = [request[0]]
+                        for adder in re.split(r"[\s\S](?:[Ff][Tt]\.|[Ff][Ee][Aa][Tt]\.)[\s\S]", request[1])[1:]:
+                            artists_song.append(adder)
                     else:
-                        print("else 2")
-                        print(name_song)
-                        request = re.search(r"^(.*)\s[-x]\s(.*)", name_song)
-                        name_song = request.group(2).split(" (")[0]
-                        if name_song == 'INTROVERSION 2.0':
-                            exit()
-                        artists_song = []
+                        request = re.split(r"\s-\s", name_song)
+                        name_song = request[1]
+                        artists_song = [request[0]]
+                        
+                elif re.match(r".*([Ff][Ee][Aa][Tt]\.|[Ff][Tt]\.).*", name_song):
+                    request = re.split(r"[\s\S](?:\(?[Ff][Ee][Aa][Tt]\.|\(?[Ff][Tt]\.)[\s\S]", name_song)
+                    name_song = request[0]
+                    artists_song = [artist["name"] for artist in track["artists"]]
+                    artists_song.append(request[1])
+
+                elif re.match(r".*[^\.]\sby.*", name_song):
+                    request = re.split(r"\sby\s", name_song)
+                    name_song = request[0]
+                    artists_song = [re.split(r"\s\[(?:.*)", request[1])[0]]
+
                 else:
-                    print("else 1")
-                    artists_song = []  # artistas de la cancion
-                    if re.match(r".*(ft\.|feat\.).*", name_song) != None:
-                        request = re.search(
-                            r"^(.*)\s\((?:ft\.|feat\.)\s(.*)\)", name_song)
+                    artists_song = []
+                    if re.match(r".*([Ff][Tt]\.|[Ff][Ee][Aa][Tt]\.).*", name_song):
+                        request = re.search(r"^(.*)\s(?:\(?[Ff][Tt]\.|[Ff][Ee][Aa][Tt]\.)\s(.*)\)?", name_song)
                         name_song = request.group(1).split(" (")[0]
-                        for artist in Separador_de_texto("&", (request.group(2))):
-                            artists_song.append(artist)
+                        artists_song = [request.group(2)]
                     else:
                         for artist in track["artists"]:
                             artists_song.append(artist["name"])
-                print(name_song)
+
+                #Limpieza de texto en titulo y artistas
+                name_song = name_song.strip()
+                name_song = re.split(r"[\s\S](\(|\[)", name_song)[0]
+                
+                temp_lista = []
+                for i, artist in enumerate(artists_song):
+                    artists_song[i] = re.split(r"[\s\S][&xX\,]\s", artist)
+                    for elemento in artists_song[i]:
+                        elemento = elemento.lstrip("\u200b")
+                        if elemento[1] == " " and elemento[-3] == " ":
+                            elemento = elemento[2:-3]
+                        elemento = re.split(r"[\s\S](?:\(|\[|\/\/)", elemento)[0]
+                        elemento = elemento.strip(")")
+                        elemento = re.sub(r"[^\sa-zA-z0-9０-９ａ-ｚＡ-Ｚ$'!#%&\?¡¿！＂＃＄％＆＇＊＋，－．／À-þ]", "", elemento)
+                        elemento = elemento.capitalize()
+                        temp_lista.append(elemento)
+                        
+                artists_song = temp_lista
                 PLAYLIST.append([name_song, artists_song, track["duration"]])
-                print("\n----")
-                
-                
                 
         else:
             for track in canciones["tracks"]:
@@ -97,8 +98,6 @@ class AdministradorYTMusic():
                 PLAYLIST.append([name_song, artists_song, length_song])
             del canciones
         return PLAYLIST
-
-
 
 
 
@@ -386,8 +385,7 @@ class AdministradorYTMusic():
 """integrar con JSON library para privadidad de playlist"""
 excepcion_playlist_uno = "PLMl1Y5tQ5mHleOf9-Tpq4pimsKqt16NcI"
 
-youtube = AdministradorYTMusic("PLMl1Y5tQ5mHleOf9-Tpq4pimsKqt16NcI", modo_debug=True).OrdenarPlaylistAlgoritmo()
-
+youtube = AdministradorYTMusic("PLMl1Y5tQ5mHleOf9-Tpq4pimsKqt16NcI", modo_debug=True)
 
 
 # debug only
