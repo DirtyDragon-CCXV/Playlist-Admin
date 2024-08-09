@@ -54,6 +54,42 @@ class AdministradorSpotify():
             canciones.extend(resultados['items'])
         
         return canciones
+    
+    def ImportarCanciones(self) -> list:
+        """
+        Extrae las informacion basica como Titulo, Artista y Duracion de cada cancion de una playlist.
+
+        Returns:
+            list: lista que contiene el titulo, artistas y duracion de las canciones.
+        """
+        def __convertirTiempo__(milisegundos: int) -> str:
+            #by: @Google Gemini, le pedi la porcion de codigo, me senti muy tonto al recordar que podia haberla hecho con el operardor de residuo '%'. me pase de pendejo :(.
+            minutos = int(milisegundos / 60000)
+            segundos = int((milisegundos % 60000) / 1000)
+
+            if segundos < 10:
+                segundos_str = f"0{segundos}"
+            else:
+                segundos_str = str(segundos)
+
+            return f"{minutos}:{segundos_str}"
+        
+        if self.__modo_debug__:
+            print("2. Obteniendo Playlist.")
+            
+        canciones_playlist = self.__obtenerPlaylist__()
+        CANCIONES = []
+        # se itera sobre la lista de las canciones para extraer: nombre de la cancion, nombre del artista y la duracion.
+        for track in canciones_playlist:
+            name_song = track['track']['name']  # nombre de la cancion
+            name_artist = [ artist["name"] for artist in track['track']['artists'] ] #artistas de la cancion
+            length_song = __convertirTiempo__(track['track']['duration_ms']) #duracion de la cancion formateada
+            CANCIONES.append([name_song, name_artist, length_song])
+        
+        if self.__modo_debug__:
+            print("2. Playlist Obtenida.", end="\n")
+            
+        return CANCIONES
 
     def OrdenarPlaylistAlgoritmo(self, Algoritmo: bool = False) -> str:
         """
@@ -108,11 +144,11 @@ class AdministradorSpotify():
                 lista_ordenada.remove(lista_ordenada[0])
                 dics_index.pop(NOMBRE_TAG)
 
-        if self.__modo_debug__:
-            print("2. Obteniendo Playlist...")
-
         # Obtener las canciones de la playlist
         canciones = self.ImportarCanciones()
+
+        if self.__modo_debug__:
+            print("3. Comprobando Playlist...")
 
         artistas = []
         for track in canciones:
@@ -147,6 +183,7 @@ class AdministradorSpotify():
                 # Combina las lista y las añade a la lista principal ordenadas y extrae el index y endIndex
                 for add_Elemnt in artista_solista + multiples_artistas:
                     __actualizarListaYIndexs__(add_Elemnt)
+            del canciones
             del artista_solista
             del multiples_artistas
 
@@ -194,6 +231,7 @@ class AdministradorSpotify():
                         del add
                     elif track[1][0] == nombre_artista:
                         segunda_seccion.append(track)
+                del coincidencias
 
                 # Ordenada las lista
                 artista_solista.sort()
@@ -212,12 +250,13 @@ class AdministradorSpotify():
                 if track not in LISTATERMINADA:
                     __actualizarListaYIndexs__(track)
 
-            del temp_segunda_seccion
+            del canciones
+            del nombre_artista
             del artista_solista
             del multiples_artistas
             del extra_artista
             del segunda_seccion
-            del coincidencias
+            del temp_segunda_seccion
             del __coincidenciasArtista__
 
             __ejecutarOrdenamiento__(LISTATERMINADA, INDEX_DOCS)
@@ -226,42 +265,6 @@ class AdministradorSpotify():
             print("3. Playlist Ordenada.", end="\n")
 
         return "Playlist ordenada."
-
-    def ImportarCanciones(self) -> list:
-        """
-        Extrae las informacion basica como Titulo, Artista y Duracion de cada cancion de una playlist.
-
-        Returns:
-            list: lista que contiene el titulo, artistas y duracion de las canciones.
-        """
-        def __convertirTiempo__(milisegundos: int) -> str:
-            #by: @Google Gemini, le pedi la porcion de codigo, me senti muy tonto al recordar que podia haberla hecho con el operardor de residuo '%'. me pase de pendejo :(.
-            minutos = int(milisegundos / 60000)
-            segundos = int((milisegundos % 60000) / 1000)
-
-            if segundos < 10:
-                segundos_str = f"0{segundos}"
-            else:
-                segundos_str = str(segundos)
-
-            return f"{minutos}:{segundos_str}"
-        
-        if self.__modo_debug__:
-            print("2. Obteniendo Playlist.")
-            
-        canciones_playlist = self.__obtenerPlaylist__()
-        CANCIONES = []
-        # se itera sobre la lista de las canciones para extraer: nombre de la cancion, nombre del artista y la duracion.
-        for track in canciones_playlist:
-            name_song = track['track']['name']  # nombre de la cancion
-            name_artist = [ artist["name"] for artist in track['track']['artists'] ] #artistas de la cancion
-            length_song = __convertirTiempo__(track['track']['duration_ms']) #duracion de la cancion formateada
-            CANCIONES.append([name_song, name_artist, length_song])
-        
-        if self.__modo_debug__:
-            print("2. Playlist Obtenida.", end="\n")
-            
-        return CANCIONES
 
     def ComprobarPlaylist(self) -> str:
         """
@@ -289,27 +292,30 @@ class AdministradorSpotify():
             print("3. Comprobando Playlist...")
             
         repetidas = []
-        for index, cancion in enumerate(CANCIONES):
+        for index, cancion in enumerate(CANCIONES): #Revisar las repetidas y añadirlas a la lista
             coincidencias = 0
             for track in CANCIONES:
                 if cancion[0] == track[0] and cancion[1] == track[1]:
                     coincidencias += 1
             if coincidencias > 1:
                 existe = False
-                valor = [cancion[0:2], cancion[2], index, existe]
+                valores = [cancion[0:2], cancion[2], index, existe]
                 if len(repetidas) == 0:
-                    repetidas.append(valor)
+                    repetidas.append(valores)
                 else:
-                    for num, elemento in enumerate(repetidas):
-                        if cancion[0] == elemento[0][0] and cancion[1] == elemento[0][1]:
-                            if cancion[2] == elemento[1]:
+                    for num, track in enumerate(repetidas):
+                        if cancion[0] == track[0][0] and cancion[1] == track[0][1]:
+                            if cancion[2] == track[1]:
                                 repetidas[num][3] = True
                             existe = True
                     if not existe:
-                        repetidas.append(valor)
+                        repetidas.append(valores)
+        del CANCIONES
         del coincidencias
+        
         try:
             del existe
+            del valores
             if self.__modo_debug__:
                 print("\n[!]Canciones duplicadas encontradas: ")
 

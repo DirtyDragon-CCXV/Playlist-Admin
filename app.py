@@ -54,10 +54,10 @@ def __formatearNombrePlaylist__(nombre: str):
             return listaNombre
         else:
             return nombre
-    
 
-
-#Spotify Functions
+    # ---------------------------------------------------------------------------- #
+    #                               spotify funtiones                              #
+    # ---------------------------------------------------------------------------- #
 def ActualizarDBSpotify(AllPlaylist: bool = True, IDplaylist: str = None, Debug: bool = False):
     """Conecta con la BD para verificar si los datos existen, actualizarlos o eliminarlos y volverlos a añadir.
 
@@ -124,12 +124,9 @@ def ActualizarDBSpotify(AllPlaylist: bool = True, IDplaylist: str = None, Debug:
             __actualizarDB__(playlist["id"])
         return "Playlists actualizadas."
     else:
-        if IDplaylist == None:
-            raise UserWarning("Url de Spotify.Playlist no definida")
-        else:
-            print("Actualizando playlist...")
-            __actualizarDB__()
-            return "Playlist actualizada."
+        print("Actualizando playlist...")
+        __actualizarDB__()
+        return "Playlist actualizada."
 
 
 def ActualizarOrdenPlaylistSpotify(AllPlaylist: bool = True, IDplaylist: str = None, Debug: bool = False, Algoritmo: bool = False):
@@ -147,7 +144,7 @@ def ActualizarOrdenPlaylistSpotify(AllPlaylist: bool = True, IDplaylist: str = N
         return "Playlists ordenadas."
     else:
         print("Ordenando playlist...")
-        engine = AdministradorSpotify(IDplaylist, Debug=Debug)
+        engine = AdministradorSpotify(playlist_Identificador=IDplaylist, Debug=Debug)
         return engine.OrdenarPlaylistAlgoritmo(Algoritmo=Algoritmo)
         
 def ComprobarPlaylistSpotify(AllPlaylist: bool = True, IDplaylist: str = None, Debug: bool = False) -> str:
@@ -161,12 +158,12 @@ def ComprobarPlaylistSpotify(AllPlaylist: bool = True, IDplaylist: str = None, D
         return "Playlists revisadas."
     else:
         print("Inspeccionando playlist...")
-        engine = AdministradorSpotify(IDplaylist, Debug)
+        engine = AdministradorSpotify(playlist_Identificador=IDplaylist, Debug=Debug)
         return engine.ComprobarPlaylist()
 
-
-
-#Youtube Music Functions
+    # ---------------------------------------------------------------------------- #
+    #                            youtube music functions                           #
+    # ---------------------------------------------------------------------------- #
 def ActualizarDBYoutubeMusic(AllPlaylist: bool = True, IDplaylist: str = None, Debug: bool = False):
     """Conecta con la BD para verificar si los datos existen, actualizarlos o eliminarlos y volverlos a añadir.
 
@@ -234,12 +231,9 @@ def ActualizarDBYoutubeMusic(AllPlaylist: bool = True, IDplaylist: str = None, D
             __actualizarDB__(playlist["playlistId"])
         return "Playlists actualizadas."
     else:
-        if IDplaylist == None:
-            raise UserWarning("Url de Spotify.Playlist no definida")
-        else:
-            print("Actualizando playlist...")
-            __actualizarDB__()
-            return "Playlist actualizada."
+        print("Actualizando playlist...")
+        __actualizarDB__()
+        return "Playlist actualizada."
         
 def ActualizarOrdenPlaylistYTMusic(AllPlaylist: bool = True, IDplaylist: str = None, Debug: bool = False, Algoritmo: bool = False):
     if AllPlaylist:
@@ -247,7 +241,7 @@ def ActualizarOrdenPlaylistYTMusic(AllPlaylist: bool = True, IDplaylist: str = N
         usuarioPlaylists = UsuarioYoutubeMusic().PLAYLIST_USUARIO
         for playlist in usuarioPlaylists:
             if not "test" in playlist["title"].lower():
-                engine = AdministradorYTMusic(playlist_ID=playlist["playlistId"], modo_debug=Debug)
+                engine = AdministradorYTMusic(playlist_Identificador=playlist["playlistId"], Debug=Debug)
                 engine.ComprobarPlaylist()
                 if playlist["playlistId"] == yt_excepcion_playlist_uno or playlist["playlistId"] == yt_excepcion_playlist_dos:
                     engine.OrdenarPlaylistAlgoritmo(Algoritmo=True)
@@ -256,7 +250,7 @@ def ActualizarOrdenPlaylistYTMusic(AllPlaylist: bool = True, IDplaylist: str = N
         return "Playlists ordenadas."
     else:
         print("Ordenando playlist...")
-        engine = AdministradorYTMusic(playlist_ID=IDplaylist, modo_debug=Debug)
+        engine = AdministradorYTMusic(playlist_Identificador=IDplaylist, Debug=Debug)
         return engine.OrdenarPlaylistAlgoritmo(Algoritmo=Algoritmo)
         
 def ComprobarPlaylistYTMusic(AllPlaylist: bool = True, IDplaylist: str = None, Debug: bool = False) -> str:
@@ -265,45 +259,13 @@ def ComprobarPlaylistYTMusic(AllPlaylist: bool = True, IDplaylist: str = None, D
         usuarioPlaylists = UsuarioYoutubeMusic().PLAYLIST_USUARIO
         for playlist in usuarioPlaylists:
             if not "test" in playlist["name"].lower():
-                engine = AdministradorYTMusic(playlist_ID=playlist["playlistId"], Debug=Debug)
+                engine = AdministradorYTMusic(playlist_Identificador=playlist["playlistId"], Debug=Debug)
                 print(engine.ComprobarPlaylist())
         return "Playlists revisadas."
     else:
         print("Inspeccionando playlist...")
-        engine = AdministradorYTMusic(IDplaylist, Debug)
+        engine = AdministradorYTMusic(playlist_Identificador=IDplaylist, Debug=Debug)
         return engine.ComprobarPlaylist()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 if __name__ == "__main__":
     TimeIn = time.time()  # tomar tiempo al momento de inicio
@@ -311,21 +273,16 @@ if __name__ == "__main__":
     
     with open("modulos/excepciones.json", "r") as f:
         excepcion = json.loads(f.read())
-    
-    """with open("modulos/tokens/credenciales_API.json", "r") as f:
-        #acomodar seccion, elimina el codigo al intentar reescribir el contenido [no usar la opcion 'w' al abrir el archivo]
-        modo_debug = excepcion["modo_debug"]
-        if argvs[0] == "--debug" or argvs[0] == "--d":
-            if excepcion["modo_debug"]: 
-                excepcion["modo_debug"] = False
-            else:
-                excepcion["modo_debug"] = True  
-            f.seek(0)
-            f.write(json.dumps(excepcion, indent=2))
-            print("Ajuste actualizado.")
-            exit()"""
 
-    modo_debug = True
+        if argvs[0] == "--d" or argvs[0] == "--debug":
+            if excepcion["modo_debug"]: excepcion["modo_debug"] = False
+            else: excepcion["modo_debug"] = True
+            with open("modulos/excepciones.json", "w") as f:
+                json.dump(excepcion, f, indent=2)
+            print("Ajuste actualizado.")
+            exit()
+
+    modo_debug = excepcion["modo_debug"] #cambiar el parametro 'debug'
     sp_excepcion_playlist_uno = excepcion["spotify"]["excepcion_playlist_uno"]
     sp_excepcion_playlist_dos = excepcion["spotify"]["excepcion_playlist_dos"]
     yt_excepcion_playlist_uno = excepcion["youtube"]["excepcion_playlist_uno"]
@@ -335,7 +292,25 @@ if __name__ == "__main__":
     
     try:
         if argvs[0] == "-h" or argvs[0] == "-help":
-            print("""App ([-sp|-spotify] | [-yt|-youtube]) ([-u|-update] | [-s|-sort] | [-r|-review]) *Url_playlist* {sort: --A1 | --A2}""")
+            print("""App ([-sp|-spotify] | [-yt|-youtube]) ([-u|-update] | [-s|-sort] | [-r|-review]) *Url_playlist* {sort: --A1 | --A2}
+    
+    Administrador de Playlist para Youtube Music y Spotify
+    
+    Uso:
+        -sp | -spotify : indica que se usara el servicio de spotify.
+        -yt | -youtube : indica que se usara el servicio de youtube music.
+        
+    Funciones:
+        -u | -update : actualiza o crea la tabla para la playlist/s correspondiente.
+        -s | -sort : ordena la playlist mediante dos algoritmos personalizados {--A1:'Algoritmo de secciones simples',
+                                                                                --A2: 'Algoritmo de secciones dobles'}
+        -r | -review : comprueba o revisa la playlist para eliminar canciones duplicadas.
+        
+    Desarrollador:
+        --d | --debug : activar el modo debug (ejecutar el comando SOLO [sin más parametros] para cambiar 
+                        la variable del programa, ejecutar nuevamente para desactivar el modo debug)
+            """)
+            
         elif argvs[0] == "-yt" or argvs[0] == "-youtube":
             servicio_predeterminado = False
             if argvs[1] == "-u" or argvs[1] == "-update":
@@ -373,7 +348,6 @@ if __name__ == "__main__":
                     print(ComprobarPlaylistYTMusic(AllPlaylist=True, IDplaylist=None, Debug=modo_debug))
             else:
                 raise UserWarning("Error en Youtube (main) If")    
-
 
         elif argvs[0] == "-sp" or argvs[0] == "-spotify":
             servicio_predeterminado = True
