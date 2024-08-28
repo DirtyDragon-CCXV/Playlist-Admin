@@ -1,5 +1,6 @@
 import json
 import spotipy
+from re import split, search, sub
 from spotipy import util
 from spotipy.oauth2 import SpotifyClientCredentials
 
@@ -82,7 +83,10 @@ class AdministradorSpotify():
         # se itera sobre la lista de las canciones para extraer: nombre de la cancion, nombre del artista y la duracion.
         for track in canciones_playlist:
             name_song = track['track']['name']  # nombre de la cancion
-            name_artist = [ artist["name"] for artist in track['track']['artists'] ] #artistas de la cancion
+            name_artist = [] #artistas de la cancion
+            for artist in track['track']['artists']:
+                for name in artist["name"].split(" & "):
+                    name_artist.append(name)
             length_song = __convertirTiempo__(track['track']['duration_ms']) #duracion de la cancion formateada
             CANCIONES.append([name_song, name_artist, length_song])
         
@@ -345,9 +349,58 @@ class AdministradorSpotify():
 
         return "Duplicados eliminados."
 
+    def InsertarCancionesPlaylist(self, datos_cancion: list):
+        def __limpiarTexto__(texto: str):
+            #funcion de @App.py
+            if search(r"[Rr]emix", texto):
+                texto = sub(r"\((?![Rr]emix).*\)", "", texto)
+            else:
+                texto = split(r"\s[-]\s", texto)[0].strip()
+                texto = sub(r"\s?\(.*\)\s?|\s?（.*）.*\)\s?", "", texto)
+            texto = sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A]", "", texto)
+            texto = sub(r"(\s)+", " ", texto)
+            return texto
+        
+        add_tracks = []
+        for datos in datos_cancion:
+            added = False
+            nombre_cancion = __limpiarTexto__(datos[0])
+            search_query = nombre_cancion.replace(" ", "+")
+        
+            try:
+                artista = __limpiarTexto__(datos[1][0])
+                search_query += "+" + artista.replace(" ", "+")
+            except IndexError:
+                pass
+            
+            search_query = sub(r"(\+)+", "+", search_query)
+            consulta = self.__sp__.search(search_query)
+            del search_query
+            
+            for track in consulta["tracks"]["items"]:
+                track["name"] = __limpiarTexto__(track["name"])             
+                
+                if track["name"].lower() == nombre_cancion.lower():
+                    try:
+                        track["artists"][0]["name"] = __limpiarTexto__(track["artists"][0]["name"])
+                        
+                        if track["artists"][0]["name"].lower() == artista.lower():
+                            added = True
+                            add_tracks.append(track["id"])
+                    except IndexError:
+                        added = True
+                        add_tracks.append(track["id"])
+                    break
+                
+            if not added:
+                print("Spotify : No encontro la cancion: ", datos, end="\n")
+
+        if len(add_tracks) != 0:
+            self.__sp__.playlist_add_items(self.__playlist_ID__, add_tracks)
+
 
 class UsuarioSpotify():
-    def __init__(self, user_id: str = user_ID, Debug: bool = False) -> list:
+    def __init__(self, Debug: bool, user_id: str = user_ID) -> list:
         # Valores Modificables
         self.__modo_debug__ = Debug
 
@@ -361,3 +414,7 @@ class UsuarioSpotify():
         
         if self.__modo_debug__:
             print("1. Cliente Autorizado", end="\n")
+
+    def InfoTrack(self, track_id: str) -> dict:
+        """obtiene los datos basicos de un track y los devuelve."""
+        return self.__sp__.track(track_id)
