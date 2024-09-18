@@ -1,6 +1,6 @@
+import re
 import json
 import spotipy
-from re import split, search, sub
 from spotipy import util
 from spotipy.oauth2 import SpotifyClientCredentials
 
@@ -83,10 +83,11 @@ class AdministradorSpotify():
         # se itera sobre la lista de las canciones para extraer: nombre de la cancion, nombre del artista y la duracion.
         for track in canciones_playlist:
             name_song = track['track']['name']  # nombre de la cancion
-            name_artist = [] #artistas de la cancion
-            for artist in track['track']['artists']:
-                for name in artist["name"].split(" & "):
-                    name_artist.append(name)
+            if re.search(r"by", name_song):
+                name_song = name_song.split(" by ")[0]
+
+            name_artist = [ artist["name"] for artist in track['track']['artists'] ] #artistas de la cancion
+
             length_song = __convertirTiempo__(track['track']['duration_ms']) #duracion de la cancion formateada
             CANCIONES.append([name_song, name_artist, length_song])
         
@@ -352,14 +353,19 @@ class AdministradorSpotify():
     def InsertarCancionesPlaylist(self, datos_cancion: list):
         def __limpiarTexto__(texto: str):
             #funcion de @App.py
-            if search(r"[Rr]emix", texto):
-                texto = sub(r"\((?![Rr]emix).*\)", "", texto)
+            if re.search(r"[Ll][Ii][Vv][Ee]", texto):
+                pass
+            
+            elif re.search(r"[Rr][Ee][Mm][Ii][Xx]", texto):
+                texto = re.sub(r"\((?![Rr][Ee][Mm][Ii][Xx]).*\)", "", texto)
+
             else:
-                texto = split(r"\s[-]\s", texto)[0].strip()
-                texto = sub(r"\s?\(.*\)\s?|\s?（.*）.*\)\s?", "", texto)
-            texto = sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A]", "", texto)
-            texto = sub(r"(\s)+", " ", texto)
-            return texto
+                texto = re.split(r"\s[-]\s", texto)[0].strip()
+                texto = re.sub(r"\s?\(.*\)\s?|\s?（.*）.*\)\s?", "", texto)
+                
+            texto = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A\uFF08\uFF09]", "", texto)
+            texto = re.sub(r"(\s)+", " ", texto)
+            return texto.strip()
         
         add_tracks = []
         for datos in datos_cancion:
@@ -373,7 +379,7 @@ class AdministradorSpotify():
             except IndexError:
                 pass
             
-            search_query = sub(r"(\+)+", "+", search_query)
+            search_query = re.sub(r"(\+)+", "+", search_query)
             consulta = self.__sp__.search(search_query)
             del search_query
             

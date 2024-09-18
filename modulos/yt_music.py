@@ -62,15 +62,23 @@ class AdministradorYTMusic():
 
             elif re.match(r".*[^\.]\sby.*", name_song):
                 request = re.split(r"\sby\s", name_song)
-                name_song = request[0]
+                name_song = request[1]
                 artists_song = [re.split(r"\s\[(?:.*)", request[1])[0]]
 
             else:
                 artists_song = ["Desconocido/s"]
 
         else:
-            if re.match(r".*（.*", name_song):
+            if re.match(r"[\u3000-\u4DB5\u4E00-\u9FE6]+.*(\s-\s)?[A-Za-z0-9\(\)]+", name_song):
                 artists_song = [ artist["name"] for artist in track["artists"] ]
+                temp_lista = []
+                for i, artist in enumerate(artists_song):
+                    artists_song[i] = re.split(r"\s?[xX&]\s?|[,、]\s?", artist)
+                    for elemento in artists_song[i]:
+                        temp_lista.append(elemento)
+                artists_song = temp_lista
+                
+                return name_song, artists_song
                 
             elif re.match(r".*\s-\s.*", name_song):
                 if re.match(r".*([Ff][Ee][Aa][Tt]\.|[Ff][Tt]\.).*", name_song):
@@ -81,8 +89,8 @@ class AdministradorYTMusic():
                         artists_song.append(adder)
                 else:
                     request = re.split(r"\s-\s", name_song)
-                    name_song = request[1]
-                    artists_song = [request[0]]
+                    name_song = request[0]
+                    artists_song = [ artist["name"] for artist in track["artists"] ]
             
             elif re.match(r".*([Ff][Ee][Aa][Tt]\.|[Ff][Tt]\.).*", name_song):
                 request = re.split(r"[\s\S](?:\(?[Ff][Ee][Aa][Tt]\.|\(?[Ff][Tt]\.?)[\s\S]", name_song)
@@ -104,18 +112,18 @@ class AdministradorYTMusic():
             name_song = re.split(r"[\s\S]\[", name_song)[0]
         elif not re.search(r"[Rr]emix", name_song):
             name_song = re.sub(r"\s?\(.*\)\s?|\s?（.*）.*\)\s?", "", name_song)
-        name_song = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A]", "", name_song)
-         
+        name_song = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A\uFF08\uFF09]", "", name_song)
+        
         temp_lista = []
         for i, artist in enumerate(artists_song):
-            artists_song[i] = re.split(r"\s[xX&]\s|,\s", artist)
+            artists_song[i] = re.split(r"\s?[xX&]\s?|[,、]\s?", artist)
             for elemento in artists_song[i]:
                 elemento = elemento.lstrip("\u200b")
                 if elemento[1] == " " and elemento[-3] == " ":
                     elemento = elemento[2:-3]
                 elemento = re.split(r"[\s\S](?:\(|\[|\/\/)", elemento)[0]
                 elemento = elemento.strip(")")
-                elemento = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A]", "", elemento)
+                elemento = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A\uFF08\uFF09]", "", elemento)
                 elemento = elemento.capitalize()
                 temp_lista.append(elemento)
         artists_song = temp_lista
@@ -413,17 +421,23 @@ class AdministradorYTMusic():
 
 
 
-    def InsertarCancionesPlaylist(self, datos_cancion: list, tipo: str = "songs"):
+    def InsertarCancionesPlaylist(self, datos_cancion: list):
         def __limpiarTexto__(texto: str):
-            #funcion de @App.py
-            if re.search(r"[Rr]emix", texto):
-                texto = re.sub(r"\((?![Rr]emix).*\)", "", texto)
+            #funcion de @app.py
+            if re.search(r"[Ll][Ii][Vv][Ee]", texto) or re.match(r"^[\u3000-\u4DB5\u4E00-\u9FE6]+\b\s?(?!\([Cc]|（[Cc]).*(\s-\s)?\w*", texto):
+                pass
+                    
+            elif re.search(r"[Rr][Ee][Mm][Ii][Xx]", texto):
+                texto = re.sub(r"\((?![Rr][Ee][Mm][Ii][Xx]).*\)", "", texto)
+
             else:
                 texto = re.split(r"\s[-]\s", texto)[0].strip()
-                texto = re.sub(r"\s?\(.*\)\s?|\s?（.*）.*\)\s?", "", texto)
-            texto = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A]", "", texto)
+                texto = re.sub(r"\s?\(.*\)\s?|\s?（.*）?\s?", "", texto)
+                
+            texto = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A\uFF08\uFF09]", "", texto)
             texto = re.sub(r"(\s)+", " ", texto)
-            return texto
+            
+            return texto.strip()
         
         add_tracks = []
         for datos in datos_cancion:
@@ -437,23 +451,67 @@ class AdministradorYTMusic():
                 pass
             
             search_query = re.sub(r"(\+)+", "+", search_query)
-            consulta = self.__yt__.search(search_query, tipo)
-            del search_query
             
-            for track in consulta:
-                track["title"] = __limpiarTexto__(track["title"])
-                
-                if track["title"].lower() == nombre_cancion.lower():
-                    try:
+            print(search_query)
+            
+            loop = 0
+            filtro = "songs"
+            while True:
+                try:
+                    consulta = self.__yt__.search(search_query, filtro)[0:3]
+                    
+                    if search_query == "I+Really+Want+to+Stay+at+Your+House+Rosa+Walton":
+                        print(consulta)
+                        exit()
+                    
+                    for track in consulta:
+                        #print("\n\n", track, "\n\n")
+                        track["title"] = __limpiarTexto__(track["title"])
                         track["artists"][0]["name"] = __limpiarTexto__(track["artists"][0]["name"])
+                         
+                        print("TrK: "+ track["title"])
+                        print("NS: "+ nombre_cancion)
+                        print(re.search(nombre_cancion.lower(), track["title"].lower()))
+                        print(track["title"].lower() == nombre_cancion.lower())
+                        print(track["artists"][0]["name"].lower() == artista.lower())
+                        print(track["artists"][0]["name"].lower())
+                        print(artista.lower())
+                        print("\n\n")
                         
-                        if track["artists"][0]["name"].lower() == artista.lower():
-                            added = True
-                            add_tracks.append(track["videoId"])
-                    except IndexError:
-                        added = True
-                        add_tracks.append(track["videoId"])
+                        if re.search(r"remix", nombre_cancion.lower()):
+                            remixBool = True
+                        else:
+                            remixBool = False
+                        
+                        if re.search(nombre_cancion.lower(), track["title"].lower()):
+                            for item in track["artists"]:
+                                if artista.lower() == item["name"].lower():
+                                    if not re.search(r"live|instrumental", track["title"].lower()):
+                                        if re.search(r"remix",  track["title"].lower()) and remixBool == True:
+                                            added = True
+                                            add_tracks.append(track["videoId"])
+                                            break
+                                        else:
+                                            added = True
+                                            add_tracks.append(track["videoId"])
+                                            break
+                                    break
+                        
+                except (IndexError, KeyError):
+                    if loop > 1: break    
+                
+                if added:
                     break
+                elif added == False and loop == 0:
+                    filtro = "videos"
+                elif added == False and loop == 1:
+                    filtro = None
+                elif added == False and loop > 1:
+                    break
+                
+                loop += 1
+            
+            input("continue?")
                 
             if not added:
                 print("Youtube Music : No encontro la cancion: ", datos, end="\n")
@@ -479,10 +537,23 @@ class UsuarioYoutubeMusic():
         if self.__modo_debug__:
             print("1. Cliente Autorizado", end="\n")
             
-    def InfoTrack(self, track_id: str , filtro:str = "songs") -> dict:
+    def InfoTrack(self, track_id: str , filtro:str = None) -> dict:
         """obtiene los datos basicos de un track y los devuelve.
         
-        filter: [albums, artists, playlists, community_playlists, featured_playlists, songs, videos, profiles, podcasts, episodes]"""
-        return self.__yt__.search(track_id, filtro)[0]
+        filter: [Top result, albums, artists, playlists, community_playlists, featured_playlists, songs, videos, profiles, podcasts, episodes]"""
+        
+        resultados = []
+        for item in self.__yt__.search(track_id, filtro)[:3]:
+            data = self.__yt__.get_song(item["videoId"])["videoDetails"]
+            
+            resultados.append(data)
+        return resultados
+
+"""x = AdministradorYTMusic("PLMl1Y5tQ5mHnnKuVBMaBq__usWBR2G1T_").ImportarCanciones()
+
+for i in x:
+    print(i)"""
     
-print(UsuarioYoutubeMusic(False).InfoTrack("rAoJC-CKEmE"))
+x = UsuarioYoutubeMusic(False).InfoTrack("g low kitty", "songs")
+for i in x:
+    print(i, end="\n\n")

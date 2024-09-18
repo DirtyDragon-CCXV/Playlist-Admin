@@ -12,7 +12,7 @@ from modulos.yt_music import AdministradorYTMusic, UsuarioYoutubeMusic
 # ---------------------------------------------------------------------------- #
 def __tagNameFormat__(track: list) -> str:
     """creador de keys para el diccionario de las excepciones"""
-    return track[1][0].split(" ")[0] + str(len(track[1])) + track[0]
+    return track[1][0].split(" ")[0].lower() + str(len(track[1])) + __limpiarTexto__(track[0].lower())
 
 def __limpiarTexto__(texto: str):
     """
@@ -22,15 +22,20 @@ def __limpiarTexto__(texto: str):
     Arg: 'texto' : str = texto de entrada a formatear
     Returs: 'texto' : str = texto formateado
     """
-    if re.search(r"[Rr]emix", texto):
-        texto = re.sub(r"\((?![Rr]emix).*\)", "", texto)
+    if re.search(r"[Ll][Ii][Vv][Ee]", texto) or re.match(r"^[\u3000-\u4DB5\u4E00-\u9FE6]+\b\s?(?!\([Cc]|（[Cc]).*(\s-\s)?\w*", texto):
+        pass
+            
+    elif re.search(r"[Rr][Ee][Mm][Ii][Xx]", texto):
+        texto = re.sub(r"\((?![Rr][Ee][Mm][Ii][Xx]).*\)", "", texto)
+
     else:
         texto = re.split(r"\s[-]\s", texto)[0].strip()
-        texto = re.sub(r"\s?\(.*\)\s?|\s?（.*）.*\)\s?", "", texto)
-    texto = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A]", "", texto)
+        texto = re.sub(r"\s?\(.*\)\s?|\s?（.*）?\s?", "", texto)
+        
+    texto = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A\uFF08\uFF09]", "", texto)
     texto = re.sub(r"(\s)+", " ", texto)
     
-    return texto
+    return texto.strip()
 
 def __formatearNombrePlaylist__(nombre: str):
     """
@@ -92,6 +97,79 @@ def SqlOpcion(argument: str):
         con.close()
 
 def CompararPlaylists(AllPlaylist: bool, IDplaylist: str, Debug: bool):
+    def __comparador__(playlistMain:list, playlistSecond:list, id:int):
+        #id: 0 for spotify
+        #id: 1 for youtube
+        
+        exit_playlist = []
+        for track in playlistMain:
+            add = True
+            track_name = track[0]
+            track_name = __limpiarTexto__(track_name)
+            track_artist = track[1][0]
+            track_artist = __limpiarTexto__(track_artist)
+            
+            try:
+                if id == 0:
+                    exclusion_sp[ __tagNameFormat__(track) ]
+                else:
+                    exclusion_yt[ __tagNameFormat__(track) ]
+                    
+                continue
+            except KeyError:
+                for song in playlistSecond:
+                    try:
+                        song_name = exclusion_main[ __tagNameFormat__(song) ][0]
+                        artist_song = exclusion_main[ __tagNameFormat__(song) ][1][0]
+                    except KeyError:
+                        song_name = song[0]
+                        artist_song = song[1][0]
+                        
+                    song_name = __limpiarTexto__(song_name)
+                    artist_song = __limpiarTexto__(artist_song)
+                    
+                    if id == 0:
+                        compador = track_name.lower()
+                    else:
+                        compador = song_name.lower()
+                    
+                    """if track[2] == "2:30":
+                        print("SP: "+track_name)
+                        print("YT: "+song_name)
+                        print(re.search(track_name.lower(), song_name.lower()))
+                        print(re.search(song_name.lower(), track_name.lower()))
+                        print(track_name.lower() == song_name.lower())
+                        print(track_artist.lower() == artist_song.lower())
+                        print("SP: "+track_artist.lower())
+                        print("YT: "+artist_song.lower())
+                        print("\n\n")"""
+                    
+                    #r"[\u3000-\u4DB5\u4E00-\u9FE6]+.*(\s-\s)?[A-Za-z0-9\(\)]+.*" -- NO BORRAR HASTA QUE FUNCIONE, HAZLE CASO A TU PASADO, EL SIEMPRE TE ENSEÑA ALGO...
+                    if re.match(r"^[\u3000-\u4DB5\u4E00-\u9FE6]+.*(\s-\s)?\w+.*", compador):
+                        if re.search(track_name.lower(), song_name.lower()) != None and track_artist.lower() == artist_song.lower():
+                            #print("one enter")
+                            add = False
+                            break
+                            
+                        if re.search(song_name.lower(), track_name.lower()) != None and track_artist.lower() == artist_song.lower():
+                            #print("two enter")
+                            add = False
+                            break
+                        
+                    else:
+                        if song_name.lower() == track_name.lower() and track_artist.lower() == artist_song.lower():
+                            add = False
+                            break
+                            
+                if add:
+                    try:
+                        exit_playlist.append(exclusion_main[ __tagNameFormat__(track) ])
+                    except KeyError:
+                        exit_playlist.append(track)
+            #input("continue?")
+                        
+        return exit_playlist  
+    
     sp = UsuarioSpotify(Debug = Debug).PLAYLIST_USUARIO
     yt = UsuarioYoutubeMusic(Debug = Debug).PLAYLIST_USUARIO
     
@@ -162,61 +240,13 @@ def CompararPlaylists(AllPlaylist: bool, IDplaylist: str, Debug: bool):
             exclusion_main = data["main"]
             del data
         
-        no_on_yt = [] #youtube comparador
-        for track in sp_playlist:
-            print("YOUTUBE BLOCK")
-            add = True
-            track_name = track[0]
-            track_name = __limpiarTexto__(track_name)
-            
-            try:
-                exclusion_yt[ __tagNameFormat__(track) ]
-                continue
-            except KeyError:
-                for song in yt_playlist:
-                    song_name = song[0]
-                    song_name = __limpiarTexto__(song_name)
-
-                    print("trName: ", track_name)
-                    print("SngName: ", song_name, end="\n\n")
-                    
-                    if track_name.lower() == song_name.lower() and track[1][0].lower() == song[1][0].lower():
-                        add = False
-                        break
-                if add: 
-                    try:
-                        no_on_yt.append(exclusion_main[ __tagNameFormat__(track) ])
-                    except KeyError:
-                        no_on_yt.append(track)
-
-        no_on_sp = [] #spotify comparador
-        for song in yt_playlist:
-            print("\n\n\nSPOTIFY BLOCK")
-            add = True
-            song_name = song[0]
-            song_name = __limpiarTexto__(song_name)
-            
-            try:
-                exclusion_sp[ __tagNameFormat__(song) ]
-                continue
-            except KeyError:
-                for track in sp_playlist:
-                    track_name = track[0]
-                    track_name = __limpiarTexto__(track_name)
-
-                    print("SngName: ", song_name)
-                    print("trName: ", track_name, end="\n")
-
-                    if song_name.lower() == track_name.lower() and song[1][0].lower() == track[1][0].lower():
-                        add = False
-                        break
-                if add: 
-                    try:
-                        no_on_sp.append(exclusion_main[ __tagNameFormat__(song) ])
-                    except KeyError:
-                        no_on_sp.append(song)
+        #youtube comparador
+        no_on_yt = __comparador__(sp_playlist, yt_playlist, 1)
         
+        #spotify comparador
+        no_on_sp = __comparador__(yt_playlist, sp_playlist, 0)
         
+        print("\n-----")
         if len(no_on_yt) != 0:
             for i in no_on_yt: print(i)
         else:
@@ -228,8 +258,9 @@ def CompararPlaylists(AllPlaylist: bool, IDplaylist: str, Debug: bool):
             for x in no_on_sp: print(x)
         else:
             print("SP - NULL")
+            
+        print("\n-----\n")
         
-        exit(1)
         if len(no_on_yt) != 0:
             yt_engine.InsertarCancionesPlaylist(datos_cancion=no_on_yt)
         if len(no_on_sp) != 0:
@@ -452,7 +483,7 @@ def ComprobarPlaylistYTMusic(AllPlaylist: bool = True, IDplaylist: str = None, D
 
 if __name__ == "__main__":
     TimeIn = time.time()  # tomar tiempo al momento de inicio
-    argvs = list(map(lambda x: x.lower(), sys.argv[1:])) #tomar argumentos / convertir en minusculas
+    argvs = sys.argv[1:] #tomar argumentos
     
     # ------------------------------ Debug Opciones ------------------------------ #
     with open("modulos/excepciones.json", "r") as f:
@@ -592,11 +623,57 @@ if __name__ == "__main__":
             
             with open(excepciones_path, "w") as f:
                 if re.search(r"\s=\s", argvs[1]):
-                    elementos = list(map(lambda x: eval(x), re.split(r"\s=\s", argvs[1])))                    
-
+                    elementos = re.split(r"\s=\s", argvs[1])
+                    
+                    try:
+                        loop = 0 
+                        filtro = None
+                        while True:
+                            if len(elementos[0]) == 11:
+                                track_sp = UsuarioSpotify(Debug=modo_debug).InfoTrack(elementos[1])
+                                track_yt = UsuarioYoutubeMusic(Debug=modo_debug).InfoTrack(elementos[0], filtro)
+                                
+                            elif len(elementos[0]) == 22:
+                                track_sp = UsuarioSpotify(Debug=modo_debug).InfoTrack(elementos[0])
+                                track_yt = UsuarioYoutubeMusic(Debug=modo_debug).InfoTrack(elementos[1], filtro)
+                            
+                            else:
+                                raise SpotifyException("404", "error", "Url Invalida")
+                            
+                            track_yt = AdministradorYTMusic.__ExcepcionTracks__(track = track_yt)
+                            
+                            track_sp = [ __limpiarTexto__(track_sp["name"]), [ artist["name"] for artist in track_sp["artists"] ] ]
+                            
+                            elementos = [ str(track_sp), str(track_yt) ]
+                            
+                            print(elementos, end="\n")
+                            
+                            user = input("yes / no [Y|n]: ").lower()
+                            if user == "yes" or user == "y" or user == "":
+                                break
+                            else:
+                                if loop == 0:
+                                    filtro = "songs"
+                                elif loop == 1:
+                                    filtro == "videos"
+                            
+                            loop += 1
+     
+                    except SpotifyException:
+                        pass
+                    
+                    try:
+                        elementos = list(map(lambda x: eval(x), elementos)) 
+                    except NameError:
+                        print("\nCanciones estilo 'list' invalidos.\n")
+                        exit()
+                    
                     tagNameOne = __tagNameFormat__(elementos[0])
                     tagNameTwo = __tagNameFormat__(elementos[1])
                     
+                    print(tagNameOne)
+                    print(tagNameTwo)
+               
                     datos["main"][tagNameOne] = elementos[1]
                     datos["main"][tagNameTwo] = elementos[0]
                     
@@ -644,8 +721,7 @@ if __name__ == "__main__":
                     artist_song = track["artists"]
                     artist_song = [ artist["name"] for artist in artist_song ]
                     
-                export = [name_song, artist_song]
-                print(export) #salida (return) con la info
+                print( [name_song, artist_song] ) #salida (return) con la info
             else:
                 raise UserWarning("Error en (--Export) If")
         
