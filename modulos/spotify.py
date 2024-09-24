@@ -424,3 +424,9 @@ class UsuarioSpotify():
     def InfoTrack(self, track_id: str) -> dict:
         """obtiene los datos basicos de un track y los devuelve."""
         return self.__sp__.track(track_id)
+    
+    
+"""x = AdministradorSpotify("1RMTQAidCNMKqScjveMBSt", False).ImportarCanciones()
+
+for i in x:
+    print(i)"""
