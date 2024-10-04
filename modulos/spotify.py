@@ -2,6 +2,8 @@ import re
 import json
 import spotipy
 from spotipy import util
+# modulos.extensiones
+from extensiones import ConvertirTextos, ConvertirTiempo
 from spotipy.oauth2 import SpotifyClientCredentials
 
 with open("modulos/tokens/credenciales_API.json", "r") as f:
@@ -20,7 +22,7 @@ TOKEN = util.prompt_for_user_token(
 )
 
 class AdministradorSpotify():
-    def __init__(self, playlist_Identificador: str, Debug: bool = False) -> None:
+    def __init__(self, playlist_Identificador: str, Debug: bool) -> None:
         # Valores Modificables
         self.__playlist_ID__ = playlist_Identificador  # ID de Playlist a interactuar
         self.__modo_debug__ = Debug
@@ -28,75 +30,79 @@ class AdministradorSpotify():
         if self.__modo_debug__:
             print("1. Autorizando Cliente...")
 
-        CREDENCIALES_CLIENTE = SpotifyClientCredentials(client_id, secret_key)  # establecer crendenciales del cliente
         # iniciar la API con las credenciales y token
-        self.__sp__ = spotipy.Spotify(client_credentials_manager=CREDENCIALES_CLIENTE, auth=TOKEN)
-        self.NOMBRE_PLAYLIST = self.__sp__.playlist(self.__playlist_ID__)["name"]
+        CREDENCIALES_CLIENTE = SpotifyClientCredentials(client_id, secret_key)
+        self.__sp__ = spotipy.Spotify(
+            client_credentials_manager=CREDENCIALES_CLIENTE, auth=TOKEN)
+        self.NOMBRE_PLAYLIST = self.__sp__.playlist(
+            self.__playlist_ID__)["name"]
 
         if self.__modo_debug__:
             print("1. Cliente Autorizado", end="\n")
 
-    def __obtenerPlaylist__(self) -> spotipy.Spotify.playlist_tracks:
+    def __getPlaylist__(self) -> spotipy.Spotify.playlist_tracks:
         """
         Funcion que obtiene la lista completa de canciones de una playlist.
 
-        Spotipy funciona por paginas, es decir toma las primeras 100 canciones, pero con la opcion ['next'], la API te permite continuar y tomar 100 más, si se repite el proceso en una bucle 'While' se pueden tomar todas las canciones
-
         @Usuario de StackOverflow - No la hice yo, encontre la parte del codigo.
-        
+
         Returns:
             Spotify.playlist_tracks: Diccionario con los tracks de la playlist en bruto.
         """
-        resultados = self.__sp__.user_playlist_tracks(None, self.__playlist_ID__)
-        
+        resultados = self.__sp__.user_playlist_tracks(
+            None, self.__playlist_ID__)
+
         canciones = resultados['items']
         while resultados['next']:
             resultados = self.__sp__.next(resultados)
             canciones.extend(resultados['items'])
-        
+
         return canciones
-    
-    def ImportarCanciones(self) -> list:
+
+    def ImportarCanciones(self) -> list:  # DONE
         """
-        Extrae las informacion basica como Titulo, Artista y Duracion de cada cancion de una playlist.
+        Extrae las informacion basica: Titulo, Artista y Duracion de cada cancion de una playlist.
 
         Returns:
             list: lista que contiene el titulo, artistas y duracion de las canciones.
         """
-        def __convertirTiempo__(milisegundos: int) -> str:
-            #by: @Google Gemini, le pedi la porcion de codigo, me senti muy tonto al recordar que podia haberla hecho con el operardor de residuo '%'. me pase de pendejo :(.
-            minutos = int(milisegundos / 60000)
-            segundos = int((milisegundos % 60000) / 1000)
 
-            if segundos < 10:
-                segundos_str = f"0{segundos}"
-            else:
-                segundos_str = str(segundos)
-
-            return f"{minutos}:{segundos_str}"
-        
         if self.__modo_debug__:
             print("2. Obteniendo Playlist.")
-            
-        canciones_playlist = self.__obtenerPlaylist__()
+
+        canciones_playlist = self.__getPlaylist__()
         CANCIONES = []
+
         # se itera sobre la lista de las canciones para extraer: nombre de la cancion, nombre del artista y la duracion.
-        for track in canciones_playlist:
-            name_song = track['track']['name']  # nombre de la cancion
-            if re.search(r"by", name_song):
-                name_song = name_song.split(" by ")[0]
+        for cancion in canciones_playlist:
+            # nombre de la cancion
+            nombre_cancion = cancion['track']['name']
+            nombre_cancion = re.sub(
+                r"\s[\(\[](?:[Ww]\/|[Ww][Ii][Tt][Hh].*|.*[&].*?)[\)\]]|\s[\(\[].*\s[Xx]\s.*|\s[\(\[][Ff][Ee][Aa][Tt].*[\)\]]", "", nombre_cancion)
 
-            name_artist = [ artist["name"] for artist in track['track']['artists'] ] #artistas de la cancion
+            # artistas de la cancion
+            nombre_artista = cancion['track']['artists']
 
-            length_song = __convertirTiempo__(track['track']['duration_ms']) #duracion de la cancion formateada
-            CANCIONES.append([name_song, name_artist, length_song])
-        
+            for x, iterador in enumerate(nombre_artista):
+                if re.match(r"\b(?:\s?\w\s\w\s\w)+\b", iterador["name"]):
+                    nombre_artista[x] = iterador["name"].replace(" ", "")
+
+                else:
+                    nombre_artista[x] = iterador["name"]
+
+            # duracion de la cancion formateada
+            duracion_cancion = ConvertirTiempo(cancion['track']['duration_ms'])
+
+            # añadir cancion
+            CANCIONES.append(
+                [nombre_cancion, nombre_artista, duracion_cancion])
+
         if self.__modo_debug__:
             print("2. Playlist Obtenida.", end="\n")
-            
+
         return CANCIONES
 
-    def OrdenarPlaylistAlgoritmo(self, Algoritmo: bool = False) -> str:
+    def OrdenarPlaylist(self, Algoritmo: bool) -> str:  # DONE
         """
         Ordernar la playlist segun algoritmo personalizado.
 
@@ -108,37 +114,43 @@ class AdministradorSpotify():
             1. El diccionario crea la "Key" del elemento en base al nombre de la cancion y la primera letra del artista, para identicar canciones que tengan nombres iguales
 
             2. Al ejecutar el reordenamiento los elemento que esten abajo se posicioran arriba y desplazaran una posicion los elementos anteriores a el elemento que se reordeno, es decir cada que un elemento se reposicion primero,mueve todos los que estan detras de el una posicion para colocarse donde deberia ir una vez ordenada la playlist y para no confundir los index, hay que sumarle un valor cada vez que esto pase.
-        
+
         Args:
             Algoritmo[bool]: algoritmo a usar, 0 para seccion simple y 1 para seccion doble.
-        
+
         Returns:
             str: mensaje de correcta ejecuccion.
         """
-        def __actualizarListaYIndexs__(add_Elemnt):
-            nombre_llave = add_Elemnt[1][0].split(" ")[0]+str(len(add_Elemnt[1]))+add_Elemnt[0]  # [NT: 1]
+        def __updateListAndIDs__(add_elemento):
+            nombre_llave = add_elemento[1][0].split(
+                # [NT: 1]
+                " ")[0] + str(len(add_elemento[1])) + add_elemento[0]
 
-            LISTATERMINADA.append(add_Elemnt)
-            INDEX_DOCS[nombre_llave] = {"index": canciones.index(add_Elemnt)}
-            INDEX_DOCS[nombre_llave]["endIndex"] = LISTATERMINADA.index(add_Elemnt)
+            LISTATERMINADA.append(add_elemento)
+            INDEX_DOCS[nombre_llave] = {"index": canciones.index(add_elemento)}
+            INDEX_DOCS[nombre_llave]["endIndex"] = LISTATERMINADA.index(
+                add_elemento)
 
-        def __ejecutarOrdenamiento__(lista_ordenada: list, dics_index: dict):
+        def __executeSort__(lista_ordenada: list, dics_index: dict):
             # reposicionar elementos en la playlist de Spotify
             while len(lista_ordenada) != 0:
                 # definir el "key" del diccionario a usar
-                NOMBRE_TAG = lista_ordenada[0][1][0].split(" ")[0] + str(len(lista_ordenada[0][1])) + lista_ordenada[0][0]
+                NOMBRE_TAG = lista_ordenada[0][1][0].split(
+                    " ")[0] + str(len(lista_ordenada[0][1])) + lista_ordenada[0][0]
                 # Guardar el index que se usa
                 index_guardado = dics_index[NOMBRE_TAG]["index"]
-                
+
                 if self.__modo_debug__:
                     print(f'!{NOMBRE_TAG} : PoIn {index_guardado}  /  PoFi {dics_index[NOMBRE_TAG]["endIndex"]}')
 
                 # Enviar las modificaciones la API
-                if dics_index[NOMBRE_TAG]["index"] != dics_index[NOMBRE_TAG]["endIndex"]:
-                    self.__sp__.user_playlist_reorder_tracks(user=user_ID, playlist_id=self.__playlist_ID__, range_start=index_guardado, insert_before=dics_index[NOMBRE_TAG]["endIndex"])
+                if index_guardado != dics_index[NOMBRE_TAG]["endIndex"]:
+                    self.__sp__.user_playlist_reorder_tracks(
+                        user=user_ID, playlist_id=self.__playlist_ID__, range_start=index_guardado, insert_before=dics_index[NOMBRE_TAG]["endIndex"])
                     # Ajustar los demas index al modificar la playlist [NT: 2]
                     for track in lista_ordenada:
-                        index_tag = track[1][0].split(" ")[0] + str(len(track[1])) + track[0]
+                        index_tag = track[1][0].split(
+                            " ")[0] + str(len(track[1])) + track[0]
                         if dics_index[index_tag]["index"] < index_guardado:
                             dics_index[index_tag]["index"] += 1
                 else:
@@ -187,16 +199,17 @@ class AdministradorSpotify():
 
                 # Combina las lista y las añade a la lista principal ordenadas y extrae el index y endIndex
                 for add_Elemnt in artista_solista + multiples_artistas:
-                    __actualizarListaYIndexs__(add_Elemnt)
+                    __updateListAndIDs__(add_Elemnt)
             del canciones
             del artista_solista
             del multiples_artistas
 
-            __ejecutarOrdenamiento__(LISTATERMINADA, INDEX_DOCS)
+            __executeSort__(LISTATERMINADA, INDEX_DOCS)
 
         else:  # Algoritmo 1
             def __coincidenciasArtista__(Lista_canciones: list, artista_buscar: str):
-                coincidencias = filter(lambda cancion: artista_buscar in cancion[1][0], Lista_canciones)
+                coincidencias = filter(
+                    lambda cancion: artista_buscar in cancion[1][0], Lista_canciones)
                 return len(list(coincidencias))
 
             temp_segunda_seccion = []
@@ -247,64 +260,60 @@ class AdministradorSpotify():
                     temp_segunda_seccion.append(segunda_seccion[0])
                 else:
                     for add_Elemnt in artista_solista + multiples_artistas + extra_artista:
-                        __actualizarListaYIndexs__(add_Elemnt)
+                        __updateListAndIDs__(add_Elemnt)
 
                 artistas.remove(nombre_artista)
 
             for track in temp_segunda_seccion:
                 if track not in LISTATERMINADA:
-                    __actualizarListaYIndexs__(track)
+                    __updateListAndIDs__(track)
 
-            del canciones
-            del nombre_artista
-            del artista_solista
-            del multiples_artistas
-            del extra_artista
-            del segunda_seccion
-            del temp_segunda_seccion
-            del __coincidenciasArtista__
-
-            __ejecutarOrdenamiento__(LISTATERMINADA, INDEX_DOCS)
+            __executeSort__(LISTATERMINADA, INDEX_DOCS)
 
         if self.__modo_debug__:
             print("3. Playlist Ordenada.", end="\n")
 
         return "Playlist ordenada."
 
-    def ComprobarPlaylist(self) -> str:
+    def ComprobarPlaylist(self) -> str:  # DONE
         """
         Comprueba las canciones de la playlist comparando mediante titulo y artistas, para eliminar las canciones duplicadas, funciona aunque la cancion sea la misma con diferente ID.
-        
+
         Returns:
             str: mensaje de correcta ejecuccion.
         """
         if self.__modo_debug__:
             print("2. Obteniendo Playlist.")
-        
-        canciones_playlist = self.__obtenerPlaylist__()
+
+        canciones_playlist = self.__getPlaylist__()
         CANCIONES = []
         # se itera sobre la lista de las canciones para extraer: nombre de la cancion, nombre del artista y el ID.
         for track in canciones_playlist:
-            name_song = track['track']['name']  # nombre de la cancion
-            name_artist = [artist["name"] for artist in track['track']['artists']]  # artistas de la cancion
+            name_song = ConvertirTextos(
+                track['track']['name'])  # nombre de la cancion
+            name_artist = [ConvertirTextos(
+                # artistas de la cancion
+                artist["name"]) for artist in track['track']['artists']]
             id_cancion = track['track']['id']  # se coloca el id de la cancion
             CANCIONES.append([name_song, name_artist, id_cancion])
         del canciones_playlist
 
         if self.__modo_debug__:
             print("2. Playlist Obtenida.", end="\n")
-        if self.__modo_debug__:
             print("3. Comprobando Playlist...")
-            
+
         repetidas = []
-        for index, cancion in enumerate(CANCIONES): #Revisar las repetidas y añadirlas a la lista
+        # Revisar las repetidas y añadirlas a la lista
+        for index, cancion in enumerate(CANCIONES):
             coincidencias = 0
             for track in CANCIONES:
-                if cancion[0] == track[0] and cancion[1] == track[1]:
+                if cancion[2] == track[2] or (cancion[0] == track[0] and cancion[1] == track[1]):
                     coincidencias += 1
+
             if coincidencias > 1:
                 existe = False
                 valores = [cancion[0:2], cancion[2], index, existe]
+
                 if len(repetidas) == 0:
                     repetidas.append(valores)
                 else:
@@ -317,32 +326,39 @@ class AdministradorSpotify():
                         repetidas.append(valores)
         del CANCIONES
         del coincidencias
-        
+
         try:
+            del index
             del existe
-            del valores
+
             if self.__modo_debug__:
                 print("\n[!]Canciones duplicadas encontradas: ")
 
-            indexs = []
-            for indx, eliminar_cancion in enumerate(repetidas):
+            eliminador_cancion = []
+            for indx, cancion in enumerate(repetidas):
                 if self.__modo_debug__:
-                    print("+ ", eliminar_cancion[0])
-                repetidas[indx] = eliminar_cancion[1]
-                indexs.append(eliminar_cancion[2:4])
+                    print("+ ", cancion[0])
 
-            self.__sp__.playlist_remove_all_occurrences_of_items(self.__playlist_ID__, repetidas)
-            for iterador, add_cancion in enumerate(indexs):
+                repetidas[indx] = cancion[1]
+                eliminador_cancion.append(cancion[2:4])
+
+            self.__sp__.playlist_remove_all_occurrences_of_items(
+                self.__playlist_ID__, repetidas)  # punto de eliminacion
+
+            for iterador, add_cancion in enumerate(eliminador_cancion):
                 if add_cancion[1]:
                     if iterador < 1:
-                        self.__sp__.playlist_add_items(self.__playlist_ID__, [repetidas[iterador]], [add_cancion[0]])
+                        self.__sp__.playlist_add_items(
+                            self.__playlist_ID__, [repetidas[iterador]], [add_cancion[0]])
                     else:
-                        self.__sp__.playlist_add_items(self.__playlist_ID__, [repetidas[iterador]], [add_cancion[0]-1])
-            del indexs
+                        self.__sp__.playlist_add_items(
+                            self.__playlist_ID__, [repetidas[iterador]], [add_cancion[0]-1])
+            del eliminador_cancion
 
         except UnboundLocalError:
             if self.__modo_debug__:
-                print("[!] No se encontraron canciones duplicadas")
+                print("[!] No se encontraron canciones duplicadas\n3. Playlist Comprobada.")
+
             return "No se encontraron duplicados"
 
         if self.__modo_debug__:
@@ -350,59 +366,67 @@ class AdministradorSpotify():
 
         return "Duplicados eliminados."
 
-    def InsertarCancionesPlaylist(self, datos_cancion: list):
-        def __limpiarTexto__(texto: str):
-            #funcion de @App.py
-            if re.search(r"[Ll][Ii][Vv][Ee]", texto):
-                pass
-            
-            elif re.search(r"[Rr][Ee][Mm][Ii][Xx]", texto):
-                texto = re.sub(r"\((?![Rr][Ee][Mm][Ii][Xx]).*\)", "", texto)
+    def InsertarCancionesPlaylist(self, datos_canciones: list):  # DONE
+        """funcion encargada de buscar una cancion en base al titulo y el artista principal, para añadirla a la playlist.
 
-            else:
-                texto = re.split(r"\s[-]\s", texto)[0].strip()
-                texto = re.sub(r"\s?\(.*\)\s?|\s?（.*）.*\)\s?", "", texto)
-                
-            texto = re.sub(r"[^\u0020-\u007E\u00A0-\u036F\u0370-\u052F\u0600-\u077F\u2E80-\u2FD5\u3000-\u4DB5\u4E00-\u9FE6\uA640-\uA69F\u10330-\u1034A\uFF21-\uFF3A\uFF08\uFF09]", "", texto)
-            texto = re.sub(r"(\s)+", " ", texto)
-            return texto.strip()
-        
-        add_tracks = []
-        for datos in datos_cancion:
-            added = False
-            nombre_cancion = __limpiarTexto__(datos[0])
-            search_query = nombre_cancion.replace(" ", "+")
-        
-            try:
-                artista = __limpiarTexto__(datos[1][0])
-                search_query += "+" + artista.replace(" ", "+")
-            except IndexError:
-                pass
-            
-            search_query = re.sub(r"(\+)+", "+", search_query)
-            consulta = self.__sp__.search(search_query)
+        Args:
+            datos_cancion (list): ['Tiutlo', ['Artistas', ...]]
+        """
+        if self.__modo_debug__:
+            print("2. Buscando canciones...")
+            no_disponibles = []
+
+        add_canciones = []
+        for track in datos_canciones:
+            add = False
+
+            nombre_cancion = ConvertirTextos(track[0]).lower()
+            artistas_cancion = track[1]
+
+            search_query = '"' + nombre_cancion + '" ' + artistas_cancion[0]
+
+            consulta = self.__sp__.search(search_query, limit=5)
             del search_query
-            
-            for track in consulta["tracks"]["items"]:
-                track["name"] = __limpiarTexto__(track["name"])             
-                
-                if track["name"].lower() == nombre_cancion.lower():
-                    try:
-                        track["artists"][0]["name"] = __limpiarTexto__(track["artists"][0]["name"])
-                        
-                        if track["artists"][0]["name"].lower() == artista.lower():
-                            added = True
-                            add_tracks.append(track["id"])
-                    except IndexError:
-                        added = True
-                        add_tracks.append(track["id"])
-                    break
-                
-            if not added:
-                print("Spotify : No encontro la cancion: ", datos, end="\n")
 
-        if len(add_tracks) != 0:
-            self.__sp__.playlist_add_items(self.__playlist_ID__, add_tracks)
+            for track in consulta["tracks"]["items"]:
+                track_nombre = ConvertirTextos(track["name"]).lower()
+                track_artistas = [name["name"] for name in track["artists"]]
+
+                if nombre_cancion == track_nombre or re.search(nombre_cancion, track["name"]):
+                    for cantante in artistas_cancion:
+                        for artist in track_artistas:
+                            if ConvertirTextos(cantante).lower() == ConvertirTextos(artist).lower():
+                                add = True
+                                add_canciones.append(track["id"])
+                                break
+                        if add:
+                            break
+                if add:
+                    break
+
+            if not add:
+                print("Spotify : No encontro la cancion: ", track, end="\n")
+
+                if self.__modo_debug__:
+                    no_disponibles.append(track)
+
+        if len(add_canciones) != 0:
+            self.__sp__.playlist_add_items(
+                self.__playlist_ID__, items=add_canciones)
+
+            if self.__modo_debug__:
+                print("2. Canciones añadidas correctamente.\n")
+
+                if len(no_disponibles) != 0:
+                    print("[!] No se encontraron...:")
+                    for x in no_disponibles:
+                        print(": ", x)
+
+            return "Canciones Añadidas."
+
+        else:
+            if self.__modo_debug__:
+                print("2. No se encontraron canciones a añadir")
 
 
 class UsuarioSpotify():
@@ -413,20 +437,16 @@ class UsuarioSpotify():
         if self.__modo_debug__:
             print("1. Autorizando Cliente...")
 
-        self.__sp__ = spotipy.Spotify(auth=TOKEN) # iniciar la API con las credenciales
+        # iniciar la API con las credenciales
+        self.__sp__ = spotipy.Spotify(auth=TOKEN)
         __listaplaylist__ = self.__sp__.user_playlists(user=user_id)
-        self.PLAYLIST_USUARIO = [ playlist for playlist in __listaplaylist__["items"] if playlist["owner"]["id"] == user_id ]
+        self.PLAYLIST_USUARIO = [playlist for playlist in __listaplaylist__[
+            "items"] if playlist["owner"]["id"] == user_id]
         del __listaplaylist__
-        
+
         if self.__modo_debug__:
             print("1. Cliente Autorizado", end="\n")
 
     def InfoTrack(self, track_id: str) -> dict:
         """obtiene los datos basicos de un track y los devuelve."""
         return self.__sp__.track(track_id)
-    
-    
-"""x = AdministradorSpotify("1RMTQAidCNMKqScjveMBSt", False).ImportarCanciones()
-
-for i in x:
-    print(i)"""
